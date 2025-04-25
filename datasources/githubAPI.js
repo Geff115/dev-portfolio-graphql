@@ -15,7 +15,13 @@ class GitHubAPI extends RESTDataSource {
     const username = process.env.GITHUB_USERNAME;
     const response = await this.get(`users/${username}/repos`);
     
-    let repositories = response.map(repo => this.repositoryReducer(repo));
+    // Map repositories and fetch languages for each
+    let repositories = await Promise.all(response.map(async repo => {
+      const repoData = this.repositoryReducer(repo);
+      // Fetch languages directly here for each repository
+      repoData.languages = await this.getLanguagesForRepo(repo.name);
+      return repoData;
+    }));
     
     // Apply filters
     if (filter.language) {
