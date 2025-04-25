@@ -1,6 +1,7 @@
 const { ApolloServer } = require('apollo-server');
 const typeDefs = require('./schema');
 const resolvers = require('./resolvers');
+const { formatError } = require('./utils/errorHandler');
 require('dotenv').config();
 
 // Import our data sources
@@ -23,6 +24,7 @@ const server = new ApolloServer({
     // We can add authentication context here if needed later
     return {};
   },
+  formatError,
   introspection: true,
   playground: true,
   cacheControl: {
@@ -34,4 +36,5 @@ const PORT = process.env.PORT || 4000;
 
 server.listen(PORT).then(({ url }) => {
   console.log(`🚀 Server ready at ${url}`);
+  console.log(`📊 GraphQL Playground available at ${url}`);
 });
