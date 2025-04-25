@@ -1,4 +1,5 @@
 const { RESTDataSource } = require('apollo-datasource-rest');
+const cache = require('../utils/cache');
 
 class BlogAPI extends RESTDataSource {
   constructor() {
@@ -16,24 +17,32 @@ class BlogAPI extends RESTDataSource {
 
   async getBlogPosts(filter = {}) {
     const username = process.env.DEVTO_USERNAME || process.env.MEDIUM_USERNAME;
+    const cacheKey = `blog:posts:${username}:${JSON.stringify(filter)}`;
     
-    // For Dev.to
-    let params = { username };
-    
-    if (filter.tag) {
-      params.tag = filter.tag;
-    }
-    
-    // This endpoint works for Dev.to
-    const response = await this.get('articles', params);
-    
-    let posts = response.map(post => this.blogPostReducer(post));
-    
-    if (filter.limit) {
-      posts = posts.slice(0, filter.limit);
-    }
-    
-    return posts;
+    return cache.getOrCompute(cacheKey, async () => {
+      try {
+        // For Dev.to
+        let params = { username };
+        
+        if (filter.tag) {
+          params.tag = filter.tag;
+        }
+        
+        // This endpoint works for Dev.to
+        const response = await this.get('articles', params);
+        
+        let posts = response.map(post => this.blogPostReducer(post));
+        
+        if (filter.limit) {
+          posts = posts.slice(0, filter.limit);
+        }
+        
+        return posts;
+      } catch (error) {
+        console.error('Error fetching blog posts:', error);
+        return []; // Return empty array on error
+      }
+    });
   }
 
   async getBlogPost(id) {

@@ -1,4 +1,5 @@
 const { RESTDataSource } = require('apollo-datasource-rest');
+const cache = require('../utils/cache');
 
 class StackOverflowAPI extends RESTDataSource {
   constructor() {
@@ -8,32 +9,41 @@ class StackOverflowAPI extends RESTDataSource {
 
   async getQuestions(filter = {}) {
     const userId = process.env.STACKOVERFLOW_USER_ID;
-    const params = {
-      site: 'stackoverflow',
-      key: process.env.STACKOVERFLOW_KEY,
-      filter: '!-*jbN-o8P3E5',  // Filter to include needed fields
-      userId
-    };
+    const cacheKey = `stackoverflow:questions:${userId}:${JSON.stringify(filter)}`;
     
-    // Add filter params if provided
-    if (filter.tag) {
-      params.tagged = filter.tag;
-    }
-    
-    const response = await this.get('users/' + userId + '/questions', params);
-    
-    let questions = response.items.map(item => this.questionReducer(item));
-    
-    // Apply filters
-    if (filter.answered !== undefined) {
-      questions = questions.filter(q => q.answered === filter.answered);
-    }
-    
-    if (filter.limit) {
-      questions = questions.slice(0, filter.limit);
-    }
-    
-    return questions;
+    return cache.getOrCompute(cacheKey, async () => {
+      const params = {
+        site: 'stackoverflow',
+        key: process.env.STACKOVERFLOW_KEY,
+        filter: '!-*jbN-o8P3E5',  // Filter to include needed fields
+        userId
+      };
+      
+      // Add filter params if provided
+      if (filter.tag) {
+        params.tagged = filter.tag;
+      }
+      
+      try {
+        const response = await this.get('users/' + userId + '/questions', params);
+        
+        let questions = response.items.map(item => this.questionReducer(item));
+        
+        // Apply filters
+        if (filter.answered !== undefined) {
+          questions = questions.filter(q => q.answered === filter.answered);
+        }
+        
+        if (filter.limit) {
+          questions = questions.slice(0, filter.limit);
+        }
+        
+        return questions;
+      } catch (error) {
+        console.error('Error fetching Stack Overflow questions:', error);
+        return []; // Return empty array on error
+      }
+    });
   }
 
   async getQuestion(id) {

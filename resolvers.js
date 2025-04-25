@@ -1,4 +1,5 @@
 const resolvers = {
+  // Query resolvers for GitHub, Stack Overflow, and Blog APIs}
     Query: {
       // GitHub resolvers
       repositories: async (_, { filter }, { dataSources }) => {
@@ -26,45 +27,46 @@ const resolvers = {
       
       // Combined timeline resolver
       allActivity: async (_, { tags, after, limit = 10 }, { dataSources }) => {
-        // Fetch data from all sources
-        const [repositories, questions, posts] = await Promise.all([
-          dataSources.githubAPI.getRepositories(),
-          dataSources.stackOverflowAPI.getQuestions(),
-          dataSources.blogAPI.getBlogPosts()
-        ]);
-        
-        // Convert to unified activity format
-        const activities = [
-          ...repositories.map(repo => ({
-            id: `github-${repo.id}`,
-            type: 'repository',
-            title: repo.name,
-            description: repo.description,
-            url: repo.url,
-            date: repo.lastUpdated,
-            tags: repo.languages.map(lang => lang.name)
-          })),
+        try {
+          // Fetch data from all sources
+          const [repositories, questions, posts] = await Promise.all([
+            dataSources.githubAPI.getRepositories(),
+            dataSources.stackOverflowAPI.getQuestions(),
+            dataSources.blogAPI.getBlogPosts()
+          ]);
           
-          ...questions.map(question => ({
-            id: `stackoverflow-${question.id}`,
-            type: 'stackoverflow',
-            title: question.title,
-            description: `Score: ${question.score}, Answered: ${question.answered}`,
-            url: question.link,
-            date: question.createdDate,
-            tags: question.tags
-          })),
-          
-          ...posts.map(post => ({
-            id: `blog-${post.id}`,
-            type: 'blogpost',
-            title: post.title,
-            description: post.excerpt,
-            url: post.link,
-            date: post.publishDate,
-            tags: post.tags
-          }))
-        ];
+          // Convert to unified activity format
+          const activities = [
+            ...repositories.map(repo => ({
+              id: `github-${repo.id}`,
+              type: 'repository',
+              title: repo.name,
+              description: repo.description,
+              url: repo.url,
+              date: repo.lastUpdated,
+              tags: repo.languages ? repo.languages.map(lang => lang.name) : []
+            })),
+            
+            ...questions.map(question => ({
+              id: `stackoverflow-${question.id}`,
+              type: 'stackoverflow',
+              title: question.title,
+              description: `Score: ${question.score}, Answered: ${question.answered}`,
+              url: question.link,
+              date: question.createdDate,
+              tags: question.tags || []
+            })),
+            
+            ...posts.map(post => ({
+              id: `blog-${post.id}`,
+              type: 'blogpost',
+              title: post.title,
+              description: post.excerpt,
+              url: post.link,
+              date: post.publishDate,
+              tags: post.tags || []
+            }))
+          ];
         
         // Apply filters
         let filteredActivities = activities;
@@ -91,6 +93,10 @@ const resolvers = {
         
         // Apply limit
         return filteredActivities.slice(0, limit);
+      } catch (error) {
+          console.error('Error fetching all activity:', error);
+          return []; // Return empty array on error
+       }
       },
     },
     
@@ -104,5 +110,5 @@ const resolvers = {
       }
     }
 };
-  
+
 module.exports = resolvers;
